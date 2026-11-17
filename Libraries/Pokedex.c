@@ -61,6 +61,18 @@ static int ValidTypes(char type[]){
     return valid;
 }
 
+int NormalizeType(char *type){
+    int result;
+
+    result = ValidTypes(type);
+
+    if((type != NULL) && (result == 0)){
+        strcpy(type, "-");
+    }
+
+    return result;
+}
+
 List *RegistPokedex(const char *file){
     List *pokedex;
     Species pkmon;

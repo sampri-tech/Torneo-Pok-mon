@@ -5,16 +5,18 @@
 #include"Pokemon.h"
 #include"Entrenador.h"
 #include"LIST.h"
-#define PKMNTEAM 6
-#define MAXIDATTEMPTS 50
-#define MINAVG 270
+#define MAXTEAM 6
+#define MAXTEMPS 50
+#define TEAMTEMP 6
+#define MINSTATS 270
 
 struct PkmonTrainer{
     int id; // Identificador unico del entrenador
     char name[20]; // Nombre del entrenador
     char prefTypes[2][20]; // Tipos favoritos; "-" si no hay filtro
-    Specimens *team[PKMNTEAM]; // Ejemplares del equipo
+    Specimens *team[MAXTEAM]; // Ejemplares del equipo
     int tSize; // Cantidad actual de Pokemon en el equipo
+    int totalLvl; // Suma de niveles del equipo
     int points; // Puntos de clasificacion
     int wins; // Combates ganados
     int ties; // Combates empatados
@@ -50,7 +52,7 @@ static int GenUniqueId(Trainer *trainers[], int count){
     id = 0;
     tries = 0;
 
-    while((tries < MAXIDATTEMPTS) && (id == 0)){
+    while((tries < MAXTEMPS) && (id == 0)){
         id = RandomTrainId();
 
         if(IdExists(trainers, count, id)){
@@ -86,6 +88,18 @@ static int CmpType(const Species *sp, const Trainer *train){
     return i;
 }
 
+static void NormalizeTypes(char t1[20], char t2[20]){
+    NormalizeType(t1);
+    NormalizeType(t2);
+
+    if((strcmp(t1, "-") == 0) && (strcmp(t2, "-") != 0)){
+        strcpy(t1, t2);
+        strcpy(t2, "-");
+    }else if((strcmp(t1, "-") != 0) && (strcmp(t2, "-") != 0) && (strcmp(t1, t2) == 0)){
+        strcpy(t2, "-");
+    }
+}
+
 static void InterClear(Trainer *train){
     int i;
 
@@ -98,6 +112,7 @@ static void InterClear(Trainer *train){
         }
 
         train->tSize = 0;
+        train->totalLvl = 0;
     }
 }
 
@@ -124,41 +139,32 @@ static int MaxBaseSum(const List *pkdex){
     return max;
 }
 
-static int GenTeam(const List *pkdex, const Trainer *train, int mate, int start,
-                   const Species *team[], int tStats, int maxSum){
+static int GenTeam(const List *pkdex, const Trainer *train, int mate, int start, const Species *team[], int tStats, int maxSum){
     const Species *candidate;
     int found, pos, total, sum;
 
     found = 0;
 
-    if((pkdex != NULL) && (train != NULL) && (team != NULL) &&
-       (mate >= 0) && (mate <= PKMNTEAM)){
-
-        if(mate >= PKMNTEAM){
-            if(tStats >= (PKMNTEAM * MINAVG)){
+    if((pkdex != NULL) && (train != NULL) && (team != NULL) && (mate >= 0) && (mate <= MAXTEAM)){
+        if(mate >= MAXTEAM){
+            if(tStats >= (MAXTEAM * MINSTATS)){
                 found = 1;
             }
-        }else if((tStats + ((PKMNTEAM - mate) * maxSum)) >=
-                 (PKMNTEAM * MINAVG)){
+        }else if((tStats + ((MAXTEAM - mate) * maxSum)) >= (MAXTEAM * MINSTATS)){
             pos = start;
             total = (int)GetLSize(pkdex);
 
             while((found == 0) && (pos < total)){
                 candidate = SearchInPosition(pkdex, (size_t)pos);
 
-                if(candidate != NULL){
-                    if((strcmp(train->prefTypes[0], "-") == 0) ||
-                       (CmpType(candidate, train) > 0)){
+                if((candidate != NULL) && ((strcmp(train->prefTypes[0], "-") == 0) || (CmpType(candidate, train) > 0))){
+                    team[mate] = candidate;
+                    sum = GetBaseSum(candidate);
 
-                        team[mate] = candidate;
-                        sum = GetBaseSum(candidate);
-
-                        if(GenTeam(pkdex, train, mate + 1, pos + 1,
-                                   team, tStats + sum, maxSum)){
-                            found = 1;
-                        }else{
-                            team[mate] = NULL;
-                        }
+                    if(GenTeam(pkdex, train, mate + 1, pos, team, tStats + sum, maxSum)){
+                        found = 1;
+                    }else{
+                        team[mate] = NULL;
                     }
                 }
 
@@ -170,35 +176,11 @@ static int GenTeam(const List *pkdex, const Trainer *train, int mate, int start,
     return found;
 }
 
-static int CountPrefTypes(const List *pkdex, const Trainer *train){
-    const Species *sp;
-    int i, count;
-    size_t size;
-
-    count = 0;
-
-    if((pkdex != NULL) && (train != NULL) &&
-       (strcmp(train->prefTypes[0], "-") != 0)){
-        size = GetLSize(pkdex);
-
-        for(i = 0; (size_t)i < size; i++){
-            sp = SearchInPosition(pkdex, (size_t)i);
-
-            if((sp != NULL) && (CmpType(sp, train) > 0)){
-                count++;
-            }
-        }
-    }
-
-    return count;
-}
-
-static int BuildTeam(const List *pkdex, const Trainer *train,
-                     const Species *team[], int maxSum){
+static int BuildTeam(const List *pkdex, const Trainer *train, const Species *team[], int maxSum){
     int i;
 
     if(team != NULL){
-        for(i = 0; i < PKMNTEAM; i++){
+        for(i = 0; i < MAXTEAM; i++){
             team[i] = NULL;
         }
     }
@@ -220,51 +202,35 @@ static void ShufflePool(const Species *pool[], int total){
     }
 }
 
-static int GenRandom(const Species *pool[], int total, const Trainer *train,
-                     int mate, int start, const Species *team[],
-                     int tStats, int maxSum, int pref, int minPref){
+static int GenRandom(const Species *pool[], int total, const Trainer *train, int mate, int start, const Species *team[], int tStats, int maxSum){
     const Species *candidate;
-    int found, nextPref, pos, sum;
+    int found, pos, sum;
 
     found = 0;
 
-    if((pool != NULL) && (train != NULL) && (team != NULL) &&
-       (total >= 0) && (mate >= 0) && (mate <= PKMNTEAM) &&
-       (start >= 0) && (start <= total) && (tStats >= 0) &&
-       (maxSum >= 0) && (pref >= 0) && (minPref >= 0)){
-
-        if(mate >= PKMNTEAM){
-            if((tStats >= (PKMNTEAM * MINAVG)) && (pref >= minPref)){
+    if((pool != NULL) && (train != NULL) && (team != NULL) && (total > 0) && (mate >= 0) && (mate <= MAXTEAM) && (start >= 0) && (start <= total) && (tStats >= 0) && (maxSum >= 0)){
+        if(mate >= MAXTEAM){
+            if(tStats >= (MAXTEAM * MINSTATS)){
                 found = 1;
             }
-        }else if((tStats + ((PKMNTEAM - mate) * maxSum)) >=
-                 (PKMNTEAM * MINAVG)){
-            if((pref + (PKMNTEAM - mate)) >= minPref){
-                pos = start;
+        }else if((tStats + ((MAXTEAM - mate) * maxSum)) >= (MAXTEAM * MINSTATS)){
+            pos = start;
 
-                while((found == 0) && (pos < total)){
-                    candidate = pool[pos];
+            while((found == 0) && (pos < total)){
+                candidate = pool[pos];
 
-                    if(candidate != NULL){
-                        team[mate] = candidate;
-                        sum = GetBaseSum(candidate);
-                        nextPref = pref;
+                if(candidate != NULL){
+                    team[mate] = candidate;
+                    sum = GetBaseSum(candidate);
 
-                        if(CmpType(candidate, train) > 0){
-                            nextPref++;
-                        }
-
-                        if(GenRandom(pool, total, train, mate + 1, pos + 1,
-                                     team, tStats + sum, maxSum,
-                                     nextPref, minPref)){
-                            found = 1;
-                        }else{
-                            team[mate] = NULL;
-                        }
+                    if(GenRandom(pool, total, train, mate + 1, pos, team, tStats + sum, maxSum)){
+                        found = 1;
+                    }else{
+                        team[mate] = NULL;
                     }
-
-                    pos++;
                 }
+
+                pos++;
             }
         }
     }
@@ -272,8 +238,7 @@ static int GenRandom(const Species *pool[], int total, const Trainer *train,
     return found;
 }
 
-static int RandomTeam(const List *pkdex, const Trainer *train,
-                      const Species *team[], int maxSum, int minPref){
+static int RandomTeam(const List *pkdex, const Trainer *train, const Species *team[], int maxSum){
     const Species **pool;
     const Species *sp;
     int i, found, total;
@@ -282,14 +247,14 @@ static int RandomTeam(const List *pkdex, const Trainer *train,
     found = 0;
     pool = NULL;
 
-    if((pkdex != NULL) && (train != NULL) && (team != NULL) && (minPref >= 0)){
-        for(i = 0; i < PKMNTEAM; i++){
+    if((pkdex != NULL) && (train != NULL) && (team != NULL)){
+        for(i = 0; i < MAXTEAM; i++){
             team[i] = NULL;
         }
 
         total = (int)GetLSize(pkdex);
 
-        if(total >= PKMNTEAM){
+        if(total > 0){
             pool = (const Species **)malloc((size_t)total * sizeof(const Species *));
 
             if(pool != NULL){
@@ -303,7 +268,7 @@ static int RandomTeam(const List *pkdex, const Trainer *train,
                 }
 
                 ShufflePool(pool, total);
-                found = GenRandom(pool, total, train, 0, 0, team, 0, maxSum, 0, minPref);
+                found = GenRandom(pool, total, train, 0, 0, team, 0, maxSum);
                 free(pool);
             }
         }
@@ -313,40 +278,38 @@ static int RandomTeam(const List *pkdex, const Trainer *train,
 }
 
 static int InterAdd(Trainer *train, const Species *pkmn, int lvl){
-    int i;
+    int added;
 
-    i = 0;
-    if((pkmn != NULL) && (train != NULL)){
-        if(train->tSize < PKMNTEAM){
-            train->team[train->tSize] = NewSpecimen(train->id, pkmn, lvl);
-            if(train->team[train->tSize] != NULL){
-                train->tSize++;
-                i++;
-            } 
-        }
+    added = 0;
+
+    train->team[train->tSize] = NewSpecimen(train->id, pkmn, lvl);
+
+    if(train->team[train->tSize] != NULL){
+        train->tSize++;
+        added = 1;
     }
 
-    return i;
+    return added;
 }
 
 static void InterDel(Trainer *train, int i){
     int j;
 
-    if((train != NULL) && (i >= 0) && (train->tSize > 0) && (i < train->tSize)){
-        DestroySpecimen(train->team[i]);
-        for(j = i; j < train->tSize - 1; j++){
-            train->team[j] = train->team[j + 1];
-        }
-        train->team[train->tSize - 1] = NULL;
-        train->tSize--;
+    DestroySpecimen(train->team[i]);
+
+    for(j = i; j < train->tSize - 1; j++){
+        train->team[j] = train->team[j + 1];
     }
+
+    train->team[train->tSize - 1] = NULL;
+    train->tSize--;
 }
 
 static int MemberLevel(int maxLvl, int pos){
     int base, rem, level;
 
-    base = maxLvl / PKMNTEAM;
-    rem = maxLvl % PKMNTEAM;
+    base = maxLvl / MAXTEAM;
+    rem = maxLvl % MAXTEAM;
     level = base;
 
     if(pos < rem){
@@ -365,15 +328,16 @@ static int MemberLevel(int maxLvl, int pos){
 }
 
 static int StoreTeam(Trainer *train, const Species *team[], int maxLvl){
-    Specimens *newTeam[PKMNTEAM];
-    int i, stored, complete;
+    Specimens *newTeam[MAXTEAM];
+    int i, size, stored, complete;
 
     stored = 0;
 
-    if((train != NULL) && (team != NULL) && (maxLvl >= PKMNTEAM)){
+    if((train != NULL) && (team != NULL) && (train->tSize > 0) && (maxLvl >= train->tSize)){
+        size = train->tSize;
         complete = 1;
 
-        for(i = 0; i < PKMNTEAM; i++){
+        for(i = 0; i < size; i++){
             newTeam[i] = NULL;
 
             if(team[i] != NULL){
@@ -388,14 +352,15 @@ static int StoreTeam(Trainer *train, const Species *team[], int maxLvl){
         if(complete == 1){
             InterClear(train);
 
-            for(i = 0; i < PKMNTEAM; i++){
+            for(i = 0; i < size; i++){
                 train->team[i] = newTeam[i];
+                train->totalLvl += GetLevel(newTeam[i]);
             }
 
-            train->tSize = PKMNTEAM;
+            train->tSize = size;
             stored = 1;
         }else{
-            for(i = 0; i < PKMNTEAM; i++){
+            for(i = 0; i < size; i++){
                 DestroySpecimen(newTeam[i]);
             }
         }
@@ -406,40 +371,40 @@ static int StoreTeam(Trainer *train, const Species *team[], int maxLvl){
 
 static Trainer *InterNewTrainer(int id, const char *nam, const char *type1, const char *type2){
     Trainer *train;
+    char t1[20], t2[20];
     int i;
 
-    if((id <= 0) || (nam == NULL) || ((type1 == NULL) && (type2 == NULL))){
+    if((id <= 0) || (nam == NULL) || (nam[0] == '\0')){
         return NULL;
     }
+
+    if(type1 != NULL){
+        snprintf(t1, sizeof(t1), "%s", type1);
+    }else{
+        strcpy(t1, "-");
+    }
+
+    if(type2 != NULL){
+        snprintf(t2, sizeof(t2), "%s", type2);
+    }else{
+        strcpy(t2, "-");
+    }
+
+    NormalizeTypes(t1, t2);
 
     train = NULL;
     train = (Trainer *)malloc(sizeof(Trainer));
 
     if(train != NULL){
         snprintf(train->name, sizeof(train->name), "%s", nam);
-
-        if((type1 != NULL) && (strcmp(type1, "-") != 0)){
-            snprintf(train->prefTypes[0], sizeof(train->prefTypes[0]), "%s", type1);
-
-            if((type2 != NULL) && (strcmp(type1, type2) != 0)){
-                snprintf(train->prefTypes[1], sizeof(train->prefTypes[1]), "%s", type2);
-            }else{
-                strcpy(train->prefTypes[1], "-");
-            }
-        }else{
-            if(((type1 == NULL) || (strcmp(type1, "-") == 0)) && (type2 != NULL)){
-                snprintf(train->prefTypes[0], sizeof(train->prefTypes[0]), "%s", type2);
-                strcpy(train->prefTypes[1], "-");
-            }else{
-                strcpy(train->prefTypes[0], "-");
-                strcpy(train->prefTypes[1], "-");
-            }
-        }
+        snprintf(train->prefTypes[0], sizeof(train->prefTypes[0]), "%s", t1);
+        snprintf(train->prefTypes[1], sizeof(train->prefTypes[1]), "%s", t2);
 
         train->id = id;
         train->tSize = 0;
+        train->totalLvl = 0;
 
-        for(i = 0; i < PKMNTEAM; i++){
+        for(i = 0; i < MAXTEAM; i++){
             train->team[i] = NULL;
         }
 
@@ -614,12 +579,48 @@ void AddPkmDefeated(Trainer *train, int amount){
     }
 }
 
-int AddTeamMemb(Trainer *train, const Species *pkm, int lvl){
-    return (InterAdd(train, pkm, lvl) > 0) ? 1 : 0;
+int AddTeamMemb(Trainer *train, const Species *pkm, int maxLvl){
+    int added, level;
+
+    added = 0;
+
+    if((train != NULL) && (pkm != NULL) && ((train->tSize + 1) <= MAXTEAM) && (maxLvl >= (train->tSize + 1))){
+        level = MemberLevel(maxLvl, train->tSize);
+
+        if((train->totalLvl + level) <= maxLvl){
+            if(InterAdd(train, pkm, level)){
+                train->totalLvl += level;
+                added = 1;
+            }
+        }
+    }
+
+    return added;
 }
 
-void DelTeamMenb(Trainer *train, int i){
-    InterDel(train, i);
+int DelTeamMemb(Trainer *train, int i, int maxLvl){
+    int deleted, level;
+
+    deleted = 0;
+
+    if((train != NULL) && (maxLvl >= train->tSize) && (i >= 0) && (i < train->tSize)){
+        level = 0;
+
+        if(train->team[i] != NULL){
+            level = GetLevel(train->team[i]);
+        }
+
+        InterDel(train, i);
+        train->totalLvl -= level;
+
+        if(train->totalLvl < 0){
+            train->totalLvl = 0;
+        }
+
+        deleted = 1;
+    }
+
+    return deleted;
 }
 
 void ClearTeam(Trainer *train){
@@ -627,35 +628,87 @@ void ClearTeam(Trainer *train){
 }
 
 int GenerateTeam(const List *pkdex, Trainer *train, int maxLvl){
-    const Species *team[PKMNTEAM];
-    int i, generated, maxSum, minPref, prefCount;
+    const Species *team[MAXTEAM];
+    int i, j, count, generated, maxSum, oldSize;
 
     generated = 0;
+    oldSize = 0;
 
-    if((pkdex != NULL) && (train != NULL) && (maxLvl >= PKMNTEAM)){
-        for(i = 0; i < PKMNTEAM; i++){
+    if(train != NULL){
+        oldSize = train->tSize;
+    }
+
+    if((pkdex != NULL) && (train != NULL) && (maxLvl >= MAXTEAM)){
+        for(i = 0; i < MAXTEAM; i++){
             team[i] = NULL;
         }
 
         maxSum = MaxBaseSum(pkdex);
-        prefCount = CountPrefTypes(pkdex, train);
-        minPref = 0;
 
-        if(prefCount < PKMNTEAM){
-            minPref = prefCount;
-        }
+        if((strcmp(train->prefTypes[0], "-") == 0) && (strcmp(train->prefTypes[1], "-") == 0)){
+            i = 0;
 
-        if(BuildTeam(pkdex, train, team, maxSum)){
-            generated = StoreTeam(train, team, maxLvl);
+            while((i < TEAMTEMP) && (generated == 0)){
+                if(RandomTeam(pkdex, train, team, maxSum)){
+                    count = 0;
+
+                    for(j = 0; j < MAXTEAM; j++){
+                        if(team[j] != NULL){
+                            count++;
+                        }
+                    }
+
+                    if(count > 0){
+                        train->tSize = count;
+                        generated = StoreTeam(train, team, maxLvl);
+                    }
+                }
+
+                i++;
+            }
         }else{
-            if(RandomTeam(pkdex, train, team, maxSum, minPref)){
-                generated = StoreTeam(train, team, maxLvl);
-            }else if(minPref > 0){
-                if(RandomTeam(pkdex, train, team, maxSum, 0)){
+            if(BuildTeam(pkdex, train, team, maxSum)){
+                count = 0;
+
+                for(j = 0; j < MAXTEAM; j++){
+                    if(team[j] != NULL){
+                        count++;
+                    }
+                }
+
+                if(count > 0){
+                    train->tSize = count;
                     generated = StoreTeam(train, team, maxLvl);
                 }
             }
+
+            if(generated == 0){
+                i = 0;
+
+                while((i < TEAMTEMP) && (generated == 0)){
+                    if(RandomTeam(pkdex, train, team, maxSum)){
+                        count = 0;
+
+                        for(j = 0; j < MAXTEAM; j++){
+                            if(team[j] != NULL){
+                                count++;
+                            }
+                        }
+
+                        if(count > 0){
+                            train->tSize = count;
+                            generated = StoreTeam(train, team, maxLvl);
+                        }
+                    }
+
+                    i++;
+                }
+            }
         }
+    }
+
+    if((train != NULL) && (generated == 0)){
+        train->tSize = oldSize;
     }
 
     return generated;

@@ -53,6 +53,15 @@ const Species *SearchNDex(const List *pokedex, int numb);
 List *SearchByType(const List *pokedex, const char *type);
 
 /**
+ * @brief Normaliza un tipo al nombre del catálogo o a "-".
+ *
+ * @param type: string con el tipo a normalizar.
+ * @return int: 1 si es un tipo válido, 2 si es "-", 0 si era inválido.
+ * @note Si el tipo es inválido, se reemplaza por "-".
+ */
+int NormalizeType(char *type);
+
+/**
  * @brief Obtiene la especie del siguiente nodo.
  *
  * @param pkmn: nodo actual.

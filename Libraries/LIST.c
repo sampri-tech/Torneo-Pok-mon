@@ -1,4 +1,4 @@
-#include<stdio.h>
+﻿#include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
 #include"LIST.h"
@@ -11,8 +11,8 @@ struct NodeList {
 };
 
 struct List {
-    size_t size; // tamaño de la lista
-    size_t eSize; // tamaño de los elementos que se van a guardar
+    size_t size; // tamaÃ±o de la lista
+    size_t eSize; // tamaÃ±o de los elementos que se van a guardar
     NodeL *head; // puntero al primer nodo de la lista
     NodeL *tail; // puntero al ultimo nodo de la lista
 };
@@ -55,7 +55,7 @@ List *CopyList(const List *list){
         new  = (NodeL *)malloc(sizeof(NodeL));
 
         if(copy == NULL || new == NULL){
-            free(copy);          /* free(NULL) es válido */
+                    free(copy);
             free(new);
             while(newList->head != NULL){
                 new = newList->head;
@@ -97,7 +97,7 @@ List *ConcatList(const List *list1, const List *list2){
 
     if(list1 == NULL && list2 == NULL) return NULL;
     if((list1 != NULL) && (list2 != NULL) && (list1->eSize != 0) && (list2->eSize != 0) && (list1->eSize != list2->eSize)){
-        fprintf(stderr, "Error: las listas tienen elementos de distinto tamaño, por lo que no se pueden concatenar.\n");
+        fprintf(stderr, "Error: las listas tienen elementos de distinto tamaÃ±o, por lo que no se pueden concatenar.\n");
         return NULL;
     }
 
@@ -271,7 +271,7 @@ void Add(List *list, void *elem, size_t elemSize, size_t pos){
 
     if((list != NULL) && (pos <= list->size) && (elemSize > 0) && (elem != NULL)){
         if((list->eSize != 0) && (list->eSize != elemSize)){
-            fprintf(stderr, "Error: el tamaño del elemento no coincide con el de la lista.\n");
+            fprintf(stderr, "Error: el tamaÃ±o del elemento no coincide con el de la lista.\n");
         }else{
             save = malloc(elemSize);
             if(save != NULL){
@@ -348,7 +348,7 @@ void Delete(List *list, size_t pos){
             free(current);
             list->size -= 1;
         }else{
-            fprintf(stderr, "Error: posición fuera de rango.\n");
+            fprintf(stderr, "Error: posiciÃ³n fuera de rango.\n");
         }
     }
 }

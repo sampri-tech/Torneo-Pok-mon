@@ -21,6 +21,13 @@ static int randomInt(int min, int max){
     return rand() % (max - min + 1) + min;
 }
 
+static int nextSpecimenId = 0;
+
+static int NextSpecimenId(void){
+    nextSpecimenId++;
+    return nextSpecimenId;
+}
+
 Specimens *NewSpecimen(int trainerId, const Species *sp, int lvl){
     Specimens *pkm;
     const char *name;
@@ -32,7 +39,7 @@ Specimens *NewSpecimen(int trainerId, const Species *sp, int lvl){
     if((sp != NULL) && (trainerId > 0) && (lvl >= 1) && (lvl <= 100)){
         pkm = (Specimens *)malloc(sizeof(Specimens));
         if(pkm != NULL){
-            pkm->pkmnID = ((trainerId % 100) * 10000) + randomInt(GetSpeciesNumb(sp), 9999);
+            pkm->pkmnID = NextSpecimenId();
 
             name = GetSpeciesName(sp);
             if(name != NULL){

@@ -12,6 +12,8 @@ struct Tournament{
     int blueId[TORNEO_TOTAL_COMBATS + 1]; // ID del primer entrenador de cada combate
     int redId[TORNEO_TOTAL_COMBATS + 1]; // ID del segundo entrenador de cada combate
     int winnerId[TORNEO_TOTAL_COMBATS + 1]; // ID del ganador; 0 si no hay resultado o empate
+    int blueDefeated[TORNEO_TOTAL_COMBATS + 1]; // Pokemon derrotados por el primer entrenador
+    int redDefeated[TORNEO_TOTAL_COMBATS + 1]; // Pokemon derrotados por el segundo entrenador
     int played[TORNEO_TOTAL_COMBATS + 1]; // 1 si el combate ya tiene resultado
     int championId; // ID del campeon
     int runnerUpId; // ID del subcampeon
@@ -48,6 +50,8 @@ static void ResetMatches(Torneo *tour){
             tour->blueId[i] = 0;
             tour->redId[i] = 0;
             tour->winnerId[i] = 0;
+            tour->blueDefeated[i] = 0;
+            tour->redDefeated[i] = 0;
             tour->played[i] = 0;
         }
     }
@@ -58,6 +62,8 @@ static void SetMatch(Torneo *tour, int numbCombat, int blueId, int redId){
         tour->blueId[numbCombat] = blueId;
         tour->redId[numbCombat] = redId;
         tour->winnerId[numbCombat] = 0;
+        tour->blueDefeated[numbCombat] = 0;
+        tour->redDefeated[numbCombat] = 0;
         tour->played[numbCombat] = 0;
     }
 }
@@ -187,8 +193,7 @@ static void AdvanceWinner(Torneo *tour, int numbCombat, int winnerId){
     }
 }
 
-static void ApplyMatchResult(Torneo *tour, int numbCombat, int winnerId, int updateStats,
-                             int blueDefeated, int redDefeated){
+static void ApplyMatchResult(Torneo *tour, int numbCombat, int winnerId, int updateStats, int blueDefeated, int redDefeated){
     Trainer *blue, *red, *win, *lose;
     int blueId, redId, loserId;
 
@@ -209,6 +214,9 @@ static void ApplyMatchResult(Torneo *tour, int numbCombat, int winnerId, int upd
             red = FindTrainerById(tour, redId);
 
             if((blue != NULL) && (red != NULL)){
+                tour->blueDefeated[numbCombat] = blueDefeated;
+                tour->redDefeated[numbCombat] = redDefeated;
+
                 if(winnerId == 0){
                     if(updateStats == 1){
                         AddTies(blue);
@@ -261,7 +269,7 @@ static void ApplyMatchResult(Torneo *tour, int numbCombat, int winnerId, int upd
     }
 }
 
-static void PrintMatch(const Torneo *tour, int numbCombat){
+void PrintMatch(const Torneo *tour, int numbCombat){
     Trainer *blue, *red, *win;
     int blueId, redId, winnerId;
 
@@ -444,6 +452,8 @@ static void BuildElimination(Torneo *tour){
             tour->blueId[i] = 0;
             tour->redId[i] = 0;
             tour->winnerId[i] = 0;
+            tour->blueDefeated[i] = 0;
+            tour->redDefeated[i] = 0;
             tour->played[i] = 0;
         }
 
@@ -539,14 +549,12 @@ void LoadResultsFromFile(Torneo *tour, const char *file){
             while(fgets(line, sizeof(line), f) != NULL){
                 blueDefeated = 0;
                 redDefeated = 0;
-                fields = sscanf(line, "%d %d %d %d %d %d", &numbCombat, &blueId, &redId,
-                                &winnerId, &blueDefeated, &redDefeated);
+                fields = sscanf(line, "%d %d %d %d %d %d", &numbCombat, &blueId, &redId, &winnerId, &blueDefeated, &redDefeated);
 
                 if((fields == 4) || (fields == 6)){
                     if((numbCombat >= 1) && (numbCombat <= TORNEO_TOTAL_COMBATS)){
                         if((tour->blueId[numbCombat] == blueId) && (tour->redId[numbCombat] == redId)){
-                            ApplyMatchResult(tour, numbCombat, winnerId, 1,
-                                             blueDefeated, redDefeated);
+                            ApplyMatchResult(tour, numbCombat, winnerId, 1, blueDefeated, redDefeated);
                         }else{
                             fprintf(stderr, "Error: participantes incompatibles en el combate %d.\n", numbCombat);
                         }
@@ -577,8 +585,7 @@ void SaveResultsToFile(const Torneo *tour, const char *file){
         if(f != NULL){
             for(i = 1; i <= TORNEO_TOTAL_COMBATS; i++){
                 if(tour->played[i] == 1){
-                    fprintf(f, "%d %d %d %d\n", i, tour->blueId[i],
-                            tour->redId[i], tour->winnerId[i]);
+                    fprintf(f, "%d %d %d %d %d %d\n", i, tour->blueId[i], tour->redId[i], tour->winnerId[i], tour->blueDefeated[i], tour->redDefeated[i]);
                     written++;
                 }
             }
@@ -625,15 +632,8 @@ void PrintStandings(const Torneo *tour){
                 train = FindTrainerById(tour, order[i]);
 
                 if(train != NULL){
-                    printf("%d %d %s %d %d %d %d %d\n",
-                           i + 1,
-                           GetTrainerId(train),
-                           GetTrainerName(train),
-                           GetWins(train),
-                           GetTies(train),
-                           GetDefeats(train),
-                           GetPoints(train),
-                           GetPkmDefeated(train));
+                    printf("%d %d %s %d %d %d %d %d\n", i + 1, GetTrainerId(train), GetTrainerName(train),
+                        GetWins(train), GetTies(train), GetDefeats(train), GetPoints(train), GetPkmDefeated(train));
                 }
             }
         }
@@ -658,15 +658,8 @@ void SaveStandingsToFile(const Torneo *tour, const char *file){
                     train = FindTrainerById(tour, order[i]);
 
                     if(train != NULL){
-                        fprintf(f, "%d %d %s %d %d %d %d %d\n",
-                                i + 1,
-                                GetTrainerId(train),
-                                GetTrainerName(train),
-                                GetWins(train),
-                                GetTies(train),
-                                GetDefeats(train),
-                                GetPoints(train),
-                                GetPkmDefeated(train));
+                        fprintf(f, "%d %d %s %d %d %d %d %d\n", i + 1, GetTrainerId(train), GetTrainerName(train),
+                                GetWins(train), GetTies(train),  GetDefeats(train), GetPoints(train), GetPkmDefeated(train));
                     }
                 }
             }

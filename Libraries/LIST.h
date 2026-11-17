@@ -7,152 +7,161 @@ typedef struct NodeList NodeL;
 typedef struct List List;
 
 /**
- * @brief Crea una nueva lista vacía , sin definir el tipo de elemento a alojar.
- * 
- * @return List*: puntero a la lista creada, o NULL si falla malloc
- * @note eSIze se define con el primer elemento agregado exitosamente;
+ * @brief Crea una nueva lista vacía.
+ *
+ * @return List*: puntero a la lista creada, o NULL si falla la memoria.
+ * @note El tamaño de elemento se establece con la primera inserción exitosa.
  */
 List *NewList(void);
 
 /**
- * @brief Copia la lista que pas por parametro
- * 
- * @param list: lista a copiar
- * @return List*: puntero a la copia de la lista ingresada por parametro, o NULL si list es igual a NULL
+ * @brief Crea una copia de una lista.
+ *
+ * @param list: lista a copiar.
+ * @return List*: nueva lista con copia de los elementos, o NULL si list es NULL o falla la memoria.
+ * @note La lista devuelta debe liberarse con DestroyList.
  */
 List *CopyList(const List *list);
 
 /**
- * @brief Concatena 2 listas
- * 
- * @param list1 primera mitad de la nueva lista.
- * @param list2 segunda mitad de la nueva lista.
- * @return List*: puntero a la nueva lista conformada por las 2 listas pasadas por parametro.
- * En caso de que alguna sea nula simplemente se ignora, si ambas lo son regresa NULL
+ * @brief Concatena dos listas en una nueva lista.
+ *
+ * @param list1: primera lista.
+ * @param list2: segunda lista.
+ * @return List*: nueva lista con los elementos de list1 seguidos de list2, o NULL si ambas son NULL, si falla la memoria o si los tamaños de elemento son incompatibles.
+ * @note La lista devuelta debe liberarse con DestroyList.
  */
 List *ConcatList(const List *list1, const List *list2);
 
 /**
- * @brief Busca todos los nodos cuyos elemetos coinciden con el elemento que se busca.
- * 
- * @param list lista donde se va a buscar
- * @param ele el elemento que se busca
- * @param cmp retorna != 0 si los elementos coinciden, 0 si no.
- * @return List* puntero a la nueva lista formada por los nodos que sus elementos coinciden con el buscado.
+ * @brief Busca los elementos que coinciden con un valor dado.
+ *
+ * @param list: lista donde se busca.
+ * @param ele: elemento a comparar.
+ * @param cmp: función de comparación; retorna distinto de 0 si hay coincidencia.
+ * @return List*: nueva lista con copias de los elementos coincidentes, o NULL si los parámetros son inválidos o falla la memoria.
+ * @note La lista devuelta debe liberarse con DestroyList.
  */
 List *SearchElement(const List *list, void *ele, int (*cmp)(const void *, const void *));
 
 /**
- * @brief Obtener el nodo cabeza (primero).
- * 
- * @param list lista la cual se consulta.
- * @return const NodeL*: puntero al nodo cabeza.
+ * @brief Obtiene el primer nodo de la lista.
+ *
+ * @param list: lista consultada.
+ * @return const NodeL*: nodo cabeza, o NULL si list es NULL o la lista está vacía.
  */
 const NodeL *GetHead(const List *list);
 
 /**
- * @brief Obtener el nodo cola (último).
- * 
- * @param list lista la cual se ocnsulta.
- * @return const NodeL*: puntero al nodo cola.
+ * @brief Obtiene el último nodo de la lista.
+ *
+ * @param list: lista consultada.
+ * @return const NodeL*: nodo cola, o NULL si list es NULL o la lista está vacía.
  */
 const NodeL *GetTail(const List *list);
 
 /**
- * @brief Obtener el nodo anterior.
- * 
- * @param node nodo el cual se consulta.
- * @return const NodeL* puntero al nodo anterior
+ * @brief Obtiene el nodo anterior a uno dado.
+ *
+ * @param node: nodo consultado.
+ * @return const NodeL*: nodo anterior, o NULL si node es NULL o no tiene anterior.
  */
 const NodeL *GetPrev(const NodeL *node);
 
 /**
- * @brief Ontener el siguiente nodo,
- * 
- * @param node nodo el cual se consulta.
- * @return const NodeL* puntero al nodo siguiente
+ * @brief Obtiene el nodo siguiente a uno dado.
+ *
+ * @param node: nodo consultado.
+ * @return const NodeL*: nodo siguiente, o NULL si node es NULL o no tiene siguiente.
  */
 const NodeL *GetNext(const NodeL *node);
 
 /**
- * @brief Obtener el tamaño de la lista.
- * 
- * @param list lista la cual se le consulta.
- * @return size_t tamaño de la lista pasada por parametro.
+ * @brief Obtiene la cantidad de elementos de la lista.
+ *
+ * @param list: lista consultada.
+ * @return size_t: tamaño de la lista, o 0 si list es NULL.
  */
 size_t GetLSize(const List *list);
 
 /**
- * @brief Obtener el elemento del nodo.
- * 
- * @param node nodo el cual se consulta.
- * @return void* Elemento que guarda el nodo al que se le consulta.
+ * @brief Obtiene el elemento almacenado en un nodo.
+ *
+ * @param node: nodo consultado.
+ * @return void*: puntero al elemento, o NULL si node es NULL.
+ * @note El puntero pertenece al nodo; no debe liberarse directamente.
  */
 void *GetElement(const NodeL *node);
 
 /**
- * @brief Verifica si una lista esta vacia
- * 
- * @param list Lista a consultar.
- * @return int 1 en caso de que la lista este vacia, 0 sino.
+ * @brief Indica si una lista está vacía.
+ *
+ * @param list: lista consultada.
+ * @return int: 1 si está vacía o list es NULL, 0 en caso contrario.
  */
 int IsLEmpty(const List *list);
 
 /**
- * @brief Agrega un nodo a una lista.
- * 
- * @param list lista donde se va agregar el nodo.
- * @param elem elemento que va a llevar el nodo.
- * @param elemSize tamaño del elemento que se va a agregar, para verificar si coincide con los demas.
- * @param pos posición donde se va a insertar.
+ * @brief Inserta un elemento en la lista en una posición dada.
+ *
+ * @param list: lista a modificar.
+ * @param elem: elemento a insertar.
+ * @param elemSize: tamaño en bytes del elemento.
+ * @param pos: posición de inserción.
+ * @note No inserta si los parámetros son inválidos, si la posición está fuera de rango o si el tamaño no coincide con el de la lista.
  */
 void Add(List *list, void *elem, size_t elemSize, size_t pos);
 
 /**
- * @brief Elimina un nodo de la lista junto con su elemento.
- * 
- * @param list lista de la cual se va a eliminar el nodo
- * @param pos posición en donde se encuentra el nodo a eliminar.
+ * @brief Elimina el elemento de una posición de la lista.
+ *
+ * @param list: lista a modificar.
+ * @param pos: posición del elemento a eliminar.
+ * @note Si la posición está fuera de rango, no modifica la lista.
  */
 void Delete(List *list, size_t pos);
 
 /**
- * @brief Buscar el elemento en una posición espesifica.
- * 
- * @param list lista la cual se consulta.
- * @param pos posición donde se busca.
- * @return void* Elemento encontrado en el nodo en esa posición.
+ * @brief Obtiene el elemento en una posición de la lista.
+ *
+ * @param list: lista consultada.
+ * @param pos: posición del elemento.
+ * @return void*: puntero al elemento, o NULL si no existe o los parámetros son inválidos.
+ * @note El puntero pertenece al nodo; no debe liberarse directamente.
  */
 void *SearchInPosition(const List *list, size_t pos);
 
 /**
- * @brief Divide una lista en 2, dejando a la original vacia.
- * 
- * @param list lista a dividir y dejar vacia.
- * @param list1 primera mitad de la lista original.
- * @param list2 segunda mitad de la lista original.
+ * @brief Divide una lista en dos listas y deja la original vacía.
+ *
+ * @param list: lista origen.
+ * @param list1: primera lista destino.
+ * @param list2: segunda lista destino.
+ * @note Las listas destino deben ser distintas entre sí y distintas de la lista origen.
  */
 void SplitList(List *list, List *list1, List *list2);
 
 /**
- * @brief Ordenar una lista.
- * 
- * @param list lista a ordenar.
- * @param cmp retorna > 0 si nodo a va antes que el b, 0 sino.
+ * @brief Ordena una lista usando merge sort.
+ *
+ * @param list: lista a ordenar.
+ * @param cmp: función de comparación; retorna > 0 si el primer elemento va antes que el segundo.
  */
 void MergeSortList(List *list, int (*cmp)(const void *, const void *));
 
 /**
- * @brief Vaciar una lista, manteniendo el tamaño de los elementos que puede guardar.
- * 
- * @param list lista la cual va a ser vaciada.
+ * @brief Elimina todos los elementos de la lista.
+ *
+ * @param list: lista a vaciar.
+ * @note Conserva la lista y su configuración interna para reutilización.
  */
 void ClearList(List *list);
 
 /**
- * @brief Destruir una lista.
- * 
- * @param list lista la cual va a ser destuida.
+ * @brief Libera la memoria de una lista y de todos sus elementos.
+ *
+ * @param list: lista a destruir.
+ * @note Si list es NULL, no realiza ninguna acción.
  */
 void DestroyList(List *list);
 
